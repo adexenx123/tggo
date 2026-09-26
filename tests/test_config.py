@@ -28,6 +28,12 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigError, "TGGO_SSH_HOST"):
             load_config(path)
 
+    def test_relay_does_not_require_local_telegram_secret(self):
+        path=self.write("TGGO_MODE=ssh-relay\nTGGO_SSH_HOST=relay.example\nTGGO_SSH_USER=alice\nTGGO_REMOTE_ENV_FILE=/home/alice/relay.env\n")
+        config=load_config(path)
+        self.assertEqual("",config.bot_token)
+        self.assertEqual("",config.chat_id)
+
     def test_rejects_unknown_mode_and_bad_limits(self):
         for content in (
             "TGGO_MODE=other\nTGGO_BOT_TOKEN=123:abc\nTGGO_CHAT_ID=456\n",

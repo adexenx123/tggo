@@ -10,7 +10,8 @@ mkdir -p "$HOME" "$CODEX_HOME"
 "$repo/install.sh"
 test -x "$HOME/.local/bin/tggo"
 test -f "$CODEX_HOME/skills/tggo/SKILL.md"
-test "$(stat -f %Lp "$HOME/.config/tggo/config.env")" = 600
+permission=$(python3 -c 'import os,sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777)[2:])' "$HOME/.config/tggo/config.env")
+test "$permission" = 600
 printf '\nCUSTOM_MARKER=keep\n' >> "$HOME/.config/tggo/config.env"
 
 "$repo/install.sh"

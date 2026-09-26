@@ -53,15 +53,17 @@ def load_config(path: Path) -> Config:
     mode = values.get("TGGO_MODE", "direct")
     if mode not in {"direct", "ssh-relay"}:
         raise ConfigError("TGGO_MODE must be direct or ssh-relay")
-    missing = [key for key in ("TGGO_BOT_TOKEN", "TGGO_CHAT_ID") if not values.get(key)]
-    if mode == "ssh-relay":
+    missing = []
+    if mode == "direct":
+        missing.extend(key for key in ("TGGO_BOT_TOKEN", "TGGO_CHAT_ID") if not values.get(key))
+    else:
         missing.extend(key for key in ("TGGO_SSH_HOST", "TGGO_SSH_USER", "TGGO_REMOTE_ENV_FILE") if not values.get(key))
     if missing:
         raise ConfigError("missing configuration: " + ", ".join(missing))
     return Config(
         mode=mode,
-        bot_token=values["TGGO_BOT_TOKEN"],
-        chat_id=values["TGGO_CHAT_ID"],
+        bot_token=values.get("TGGO_BOT_TOKEN", ""),
+        chat_id=values.get("TGGO_CHAT_ID", ""),
         max_file_mb=_positive(values, "TGGO_MAX_FILE_MB", 50),
         max_total_mb=_positive(values, "TGGO_MAX_TOTAL_MB", 200),
         telegram_api_base=values.get("TGGO_TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/"),

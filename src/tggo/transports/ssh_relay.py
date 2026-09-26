@@ -20,6 +20,11 @@ class SSHRelayTransport:
         args=["scp","-q","-P",str(self.config.ssh_port)]
         if self.config.ssh_identity_file: args.extend(["-i",self.config.ssh_identity_file])
         return args
+    def doctor(self)->str:
+        command="python3 ~/.local/lib/tggo-relay/tggo-relay.py --doctor --env "+shlex.quote(self.config.remote_env_file)
+        checked=run([*self._ssh_base(),command],30)
+        if checked.returncode: raise RuntimeError("relay doctor failed")
+        return str(json.loads(checked.stdout)["bot"])
     def send(self,plan:list[dict[str,object]],files:list[FileInfo])->dict[str,object]:
         made=run([*self._ssh_base(),"mktemp -d /tmp/tggo.XXXXXXXX"],15)
         if made.returncode: raise RuntimeError("could not create relay staging directory")

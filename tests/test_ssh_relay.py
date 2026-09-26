@@ -37,3 +37,9 @@ class RelayTests(unittest.TestCase):
     def test_rejects_unsafe_host(self):
         config=self.config(); config=Config(**{**config.__dict__,"ssh_host":"-oProxyCommand=bad"})
         with self.assertRaisesRegex(ValueError,"unsafe"): SSHRelayTransport(config)
+
+    def test_doctor_uses_remote_runner(self):
+        def fake(command,timeout=60):
+            return Result(out='{"status":"ok","bot":"relay_bot"}')
+        with patch("tggo.transports.ssh_relay.run",side_effect=fake):
+            self.assertEqual("relay_bot",SSHRelayTransport(self.config()).doctor())

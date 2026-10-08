@@ -27,4 +27,9 @@ class ReleaseTests(unittest.TestCase):
         for phrase in ("direct","ssh-relay","install.sh","TGGO_BOT_TOKEN","$tggo"):
             self.assertIn(phrase,readme)
 
+    def test_release_script_runs_packaging_shell_install_and_skill_checks(self):
+        script=(ROOT/"scripts/check-release.sh").read_text(encoding="utf-8")
+        for phrase in ("compileall","sh -n","tests/test_install.sh","quick_validate.py"):
+            self.assertIn(phrase,script)
+
 if __name__=="__main__": unittest.main()

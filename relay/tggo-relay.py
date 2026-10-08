@@ -8,13 +8,27 @@ sys.path.insert(0,str(HERE/"src"))
 sys.path.insert(0,str(HERE.parent/"src"))
 from tggo.config import load_config
 from tggo.files import FileInfo
+from tggo.inbox import InboxStore
 from tggo.transports.direct import DirectTransport
 
 def main()->int:
-    parser=argparse.ArgumentParser(); parser.add_argument("--manifest"); parser.add_argument("--env",required=True); parser.add_argument("--preview",action="store_true"); parser.add_argument("--doctor",action="store_true")
+    parser=argparse.ArgumentParser(); parser.add_argument("--manifest"); parser.add_argument("--env",required=True); parser.add_argument("--preview",action="store_true"); parser.add_argument("--doctor",action="store_true"); parser.add_argument("--inbox-action",choices=["list","show","download","read","archive"]); parser.add_argument("--inbox-id"); parser.add_argument("--all",action="store_true")
     args=parser.parse_args(); config=load_config(Path(args.env).expanduser())
     if args.doctor:
         print(json.dumps({"status":"ok","bot":DirectTransport(config).doctor()})); return 0
+    if args.inbox_action:
+        store=InboxStore(config.data_dir/"inbox")
+        if args.inbox_action=="list": result=store.list(include_archived=args.all)
+        else:
+            if not args.inbox_id: parser.error("--inbox-id is required")
+            if args.inbox_action=="show": result=store.get(args.inbox_id)
+            elif args.inbox_action=="read": result=store.mark_read(args.inbox_id)
+            elif args.inbox_action=="archive": result=store.archive(args.inbox_id)
+            else:
+                item=store.get(args.inbox_id); attachment=item.get("attachment")
+                if not attachment: raise ValueError("inbox item has no attachment")
+                sys.stdout.buffer.write((store.root/item["id"]/attachment["path"]).read_bytes()); return 0
+        print(json.dumps(result,ensure_ascii=False)); return 0
     if not args.manifest: parser.error("--manifest is required unless --doctor is used")
     manifest=json.loads(Path(args.manifest).read_text(encoding="utf-8"))
     if args.preview:

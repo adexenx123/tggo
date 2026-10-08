@@ -22,6 +22,12 @@ class ConfigTests(unittest.TestCase):
         config = load_config(self.write("TGGO_MODE=direct\nTGGO_BOT_TOKEN=123:abc\nTGGO_CHAT_ID=456\n"))
         self.assertEqual("direct", config.mode)
         self.assertEqual(50, config.max_file_mb)
+        self.assertEqual(Path("~/.local/share/tggo").expanduser(),config.data_dir)
+
+    def test_loads_custom_data_directory_without_exposing_secrets(self):
+        config=load_config(self.write("TGGO_MODE=direct\nTGGO_BOT_TOKEN=secret\nTGGO_CHAT_ID=456\nTGGO_DATA_DIR=/tmp/tggo-data\n"))
+        self.assertEqual(Path("/tmp/tggo-data"),config.data_dir)
+        self.assertNotIn("secret",repr(config.data_dir))
 
     def test_requires_relay_fields(self):
         path = self.write("TGGO_MODE=ssh-relay\nTGGO_BOT_TOKEN=123:abc\nTGGO_CHAT_ID=456\n")

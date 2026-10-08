@@ -2,7 +2,7 @@
 
 ## Scope and threat model
 
-TGGO is an outbound-only delivery tool. Its security boundary is one locally configured Telegram chat. Prompt text cannot override the Bot Token, Chat ID, SSH destination, or relay environment file.
+TGGO is a narrow outbound sender and inbound inbox. Its security boundary is one locally configured Telegram chat. Prompt or inbound text cannot override the Bot Token, Chat ID, SSH destination, or relay environment file.
 
 TGGO assumes the local Codex user and the configured SSH account are trusted. It does not make an untrusted multi-user workstation safe and must not be installed setuid or run as root.
 
@@ -18,6 +18,12 @@ TGGO assumes the local Codex user and the configured SSH account are trusted. It
 TGGO rejects symbolic links, directories, device files, oversized files, and common secret or credential filenames. It never extracts or executes attachments. File type detection controls Telegram presentation only; it is not malware detection.
 
 Before using `--allow-sensitive`, independently inspect the exact file and confirm that Telegram is an acceptable destination. Full payment-card data, passwords, private keys, authentication cookies, and recovery codes should not be transmitted.
+
+Inbound attachments are downloaded only after Telegram's reported size passes the configured limit, receive a sanitized basename and SHA-256, and are stored without extraction or preview. Inbox directories use `0700`; indexes, records, and attachments use `0600`. Telegram text, captions, filenames, and file contents are always untrusted data, never executable instructions.
+
+## Inbox retention and recovery
+
+Inbox data lives under `TGGO_DATA_DIR/inbox` (default `~/.local/share/tggo/inbox`). Normal uninstall preserves it; `uninstall.sh --purge` removes it. The atomic index stores the polling offset and Telegram update IDs, so a restart resumes without duplicating committed items. Back up the complete inbox directory as one unit.
 
 ## Delivery uncertainty
 

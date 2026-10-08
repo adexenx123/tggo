@@ -7,6 +7,9 @@ from ..files import FileInfo
 def run(command:list[str],timeout:int=60)->subprocess.CompletedProcess[str]:
     return subprocess.run(command,check=False,capture_output=True,text=True,timeout=timeout)
 
+def run_bytes(command:list[str],timeout:int=60)->subprocess.CompletedProcess[bytes]:
+    return subprocess.run(command,check=False,capture_output=True,timeout=timeout)
+
 class SSHRelayTransport:
     def __init__(self,config:Config):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*",config.ssh_host) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*",config.ssh_user):
@@ -25,6 +28,22 @@ class SSHRelayTransport:
         checked=run([*self._ssh_base(),command],30)
         if checked.returncode: raise RuntimeError("relay doctor failed")
         return str(json.loads(checked.stdout)["bot"])
+    def inbox(self,action:str,identifier:str|None,output:str|None,include_archived:bool)->object:
+        if action not in {"list","show","download","read","archive"}: raise ValueError("unsupported relay inbox action")
+        if action!="list" and (not identifier or not re.fullmatch(r"TG-[A-F0-9]{12}",identifier)): raise ValueError("invalid inbox ID")
+        arguments=["python3","~/.local/lib/tggo-relay/tggo-relay.py","--env",self.config.remote_env_file,"--inbox-action",action]
+        if identifier: arguments.extend(["--inbox-id",identifier])
+        if include_archived: arguments.append("--all")
+        command=" ".join(shlex.quote(argument) if argument!="~/.local/lib/tggo-relay/tggo-relay.py" else argument for argument in arguments)
+        if action=="download":
+            destination=Path(output or f"{identifier}.bin").expanduser()
+            if destination.exists(): raise ValueError(f"output already exists: {destination}")
+            checked=run_bytes([*self._ssh_base(),command],120)
+            if checked.returncode: raise RuntimeError("relay inbox download failed")
+            destination.write_bytes(checked.stdout); destination.chmod(0o600); return str(destination)
+        checked=run([*self._ssh_base(),command],30)
+        if checked.returncode: raise RuntimeError("relay inbox operation failed")
+        return json.loads(checked.stdout)
     def send(self,plan:list[dict[str,object]],files:list[FileInfo])->dict[str,object]:
         made=run([*self._ssh_base(),"mktemp -d /tmp/tggo.XXXXXXXX"],15)
         if made.returncode: raise RuntimeError("could not create relay staging directory")

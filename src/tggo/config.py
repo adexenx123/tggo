@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import os
 
 
 class ConfigError(ValueError):
@@ -21,6 +22,7 @@ class Config:
     ssh_port: int = 22
     ssh_identity_file: str = ""
     remote_env_file: str = ""
+    data_dir: Path = Path("~/.local/share/tggo").expanduser()
 
 
 def _parse_env(path: Path) -> dict[str, str]:
@@ -72,4 +74,5 @@ def load_config(path: Path) -> Config:
         ssh_port=_positive(values, "TGGO_SSH_PORT", 22),
         ssh_identity_file=values.get("TGGO_SSH_IDENTITY_FILE", ""),
         remote_env_file=values.get("TGGO_REMOTE_ENV_FILE", ""),
+        data_dir=Path(os.environ.get("TGGO_DATA_DIR",values.get("TGGO_DATA_DIR","~/.local/share/tggo"))).expanduser(),
     )

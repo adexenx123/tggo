@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from pathlib import Path
 from ..config import Config
 from ..files import FileInfo
 from ..telegram import TelegramCurl, TelegramError
@@ -9,6 +10,23 @@ class DirectTransport:
     def doctor(self)->str:
         result=self.client.request("getMe",[])
         return str(result.get("username") or result.get("first_name") or "Telegram bot")
+    def get_updates(self,offset:int,timeout:int=30)->list[dict]:
+        result=self.client.request("getUpdates",["--form-string",f"offset={offset}","--form-string",f"timeout={timeout}","--form-string","allowed_updates=[\"message\"]"])
+        if not isinstance(result,list): raise TelegramError("Telegram updates response is invalid")
+        return result
+    def get_file(self,file_id:str)->dict:
+        result=self.client.request("getFile",["--form-string",f"file_id={file_id}"])
+        if not isinstance(result,dict) or not result.get("file_path"): raise TelegramError("Telegram file response is invalid")
+        return result
+    def download_file(self,file_path:str,target:Path,reported_size:int)->Path:
+        limit=self.config.max_file_mb*1024*1024
+        if reported_size>limit: raise TelegramError("Telegram file exceeds configured size limit")
+        target.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+        return self.client.download(file_path,target,limit)
+    def confirm_saved(self,identifier:str)->None:
+        self.client.request("sendMessage",["--form-string",f"chat_id={self.config.chat_id}","--form-string",f"text=✅ 已存入 TGGO 收件匣｜編號 {identifier}"])
+    def confirm_failed(self)->None:
+        self.client.request("sendMessage",["--form-string",f"chat_id={self.config.chat_id}","--form-string","text=⚠️ TGGO 收件匣保存失敗，稍後將重試"])
     def _ids(self,result)->list[int]:
         messages=result if isinstance(result,list) else [result]
         return [int(message["message_id"]) for message in messages if isinstance(message,dict) and "message_id" in message]

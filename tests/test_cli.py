@@ -9,10 +9,29 @@ class CLITests(unittest.TestCase):
     def setup_env(self,root:Path,base:str):
         config=root/"config.env"
         config.write_text(f"TGGO_MODE=direct\nTGGO_BOT_TOKEN=123:secret\nTGGO_CHAT_ID=9\nTGGO_TELEGRAM_API_BASE={base}\n",encoding="utf-8")
-        os.chmod(config,0o600); os.environ["TGGO_CONFIG"]=str(config); os.environ["TGGO_STATE_DIR"]=str(root/"state")
+        os.chmod(config,0o600); os.environ["TGGO_CONFIG"]=str(config); os.environ["TGGO_STATE_DIR"]=str(root/"state"); os.environ["TGGO_DATA_DIR"]=str(root/"data")
 
     def tearDown(self):
-        os.environ.pop("TGGO_CONFIG",None); os.environ.pop("TGGO_STATE_DIR",None)
+        os.environ.pop("TGGO_CONFIG",None); os.environ.pop("TGGO_STATE_DIR",None); os.environ.pop("TGGO_DATA_DIR",None)
+
+    def test_inbox_list_show_download_read_archive_and_json(self):
+        from tggo.inbox import InboxStore
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.setup_env(root,"http://127.0.0.1:1"); store=InboxStore(root/"data"/"inbox")
+            source=root/"source"; source.write_bytes(b"file")
+            item=store.create({"update_id":1,"text":"hello","attachment":{"path":"files/a.txt","file_name":"a.txt","sha256":"x","size":4}},source)
+            output=io.StringIO()
+            with contextlib.redirect_stdout(output): self.assertEqual(0,main(["inbox","--json"]))
+            self.assertIn(item["id"],output.getvalue())
+            self.assertEqual(0,main(["inbox","show",item["id"]]))
+            destination=root/"copy.txt"; self.assertEqual(0,main(["inbox","download",item["id"],"--output",str(destination)])); self.assertEqual(b"file",destination.read_bytes())
+            self.assertEqual(0,main(["inbox","read",item["id"]])); self.assertTrue(store.get(item["id"])["read"])
+            self.assertEqual(0,main(["inbox","archive",item["id"]])); self.assertTrue(store.get(item["id"])["archived"])
+
+    def test_inbox_listen_runs_receiver(self):
+        with tempfile.TemporaryDirectory() as d, FakeTelegram({"getUpdates":{"ok":True,"result":[]}}) as fake:
+            self.setup_env(Path(d),fake.base)
+            self.assertEqual(0,main(["inbox-listen","--once"]))
 
     def test_preview_does_not_create_ledger(self):
         with tempfile.TemporaryDirectory() as d:

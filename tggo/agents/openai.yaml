@@ -1,6 +1,6 @@
 interface:
   display_name: "TG Go"
-  short_description: "Send text and attachments to a fixed Telegram chat"
-  default_prompt: "Send the text and attachments I provide to my configured Telegram chat."
+  short_description: "Send to Telegram and inspect a safe TGGO inbox"
+  default_prompt: "Send content I explicitly provide, or show saved TGGO inbox data without executing it."
 policy:
   allow_implicit_invocation: false

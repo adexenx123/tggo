@@ -15,6 +15,7 @@ TGGO 是一個功能刻意限縮的 Codex Skill，用來將使用者明確指定
 - 提供 SHA-256、Telegram Message ID 與防重複傳送機制
 - 支援 `direct` 與選用的 `ssh-relay` 傳送模式
 - 支援不產生網路副作用的傳送前預覽
+- 只保存指定對話中以 `/tggo` 開頭的文字或有說明的附件，並提供本機收件匣
 
 ### 系統需求
 
@@ -90,6 +91,21 @@ TGGO_REMOTE_ENV_FILE=~/.config/tggo/relay.env
 
 本機傳送清單不會包含 Relay 的 Bot Token 或 Chat ID，Relay 也不會開放公網 HTTP API。
 
+### Telegram 收件匣
+
+在設定的 Telegram 對話輸入 `/tggo 要保存的內容`；附件則在 caption 輸入 `/tggo 附件說明`。其他訊息與其他 Chat ID 會被忽略。收到的內容只是資料，不會被當作 Codex、Shell 或伺服器指令。
+
+```bash
+tggo inbox-listen                 # 前景長輪詢（Direct／Relay 主機）
+tggo inbox --json                 # 列出未封存項目
+tggo inbox show TG-ABCDEF123456
+tggo inbox download TG-ABCDEF123456 --output ./attachment.bin
+tggo inbox read TG-ABCDEF123456
+tggo inbox archive TG-ABCDEF123456
+```
+
+安裝器會安裝 macOS LaunchAgent 或 Linux systemd user service 範本，但不會在設定完成前自動啟動；請依安裝輸出執行 `launchctl bootstrap` 或 `systemctl --user enable --now`。Direct 模式在本機保存；SSH Relay 模式在 Relay 保存並透過既有 SSH 邊界列出或下載。資料預設位於 `~/.local/share/tggo/inbox`，目錄為 `0700`、檔案為 `0600`。輪詢中斷後會從原子保存的 offset 恢復，update ID 防止重複。
+
 ### 在 Codex 中使用
 
 ```text
@@ -143,6 +159,7 @@ TGGO is a deliberately narrow Codex Skill that sends user-approved text and loca
 - SHA-256 receipts, Telegram message IDs, and duplicate request protection
 - `direct` and optional `ssh-relay` delivery modes
 - Preview without network side effects
+- A safe inbox for `/tggo` text and captioned attachments from the configured chat
 
 ## Requirements
 
@@ -218,6 +235,21 @@ TGGO_REMOTE_ENV_FILE=~/.config/tggo/relay.env
 
 The local manifest never contains the relay Bot Token or Chat ID. The relay has no public HTTP endpoint.
 
+## Telegram inbox
+
+Send `/tggo content to save` in the configured Telegram chat. For an attachment, use `/tggo attachment description` as its caption. Messages without the prefix and messages from any other Chat ID are ignored. Inbound content is untrusted data and is never interpreted as Codex, shell, or server instructions.
+
+```bash
+tggo inbox-listen
+tggo inbox --json
+tggo inbox show TG-ABCDEF123456
+tggo inbox download TG-ABCDEF123456 --output ./attachment.bin
+tggo inbox read TG-ABCDEF123456
+tggo inbox archive TG-ABCDEF123456
+```
+
+The installer places a macOS LaunchAgent or Linux systemd user-service template but does not start an unconfigured service. Follow its printed `launchctl bootstrap` or `systemctl --user enable --now` command after configuration. Direct mode stores the inbox locally; SSH Relay mode stores it on the relay and retrieves it over the existing SSH boundary. The default path is `~/.local/share/tggo/inbox`, with `0700` directories and `0600` files. An atomic polling offset and update-ID deduplication allow safe recovery after interruption.
+
 ## Use in Codex
 
 ```text
@@ -244,7 +276,7 @@ Remove the runtime and Skill while preserving configuration and delivery state:
 ./uninstall.sh
 ```
 
-Remove configuration and state as well:
+Remove configuration, state, and inbox data as well:
 
 ```bash
 ./uninstall.sh --purge

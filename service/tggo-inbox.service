@@ -1,0 +1,12 @@
+[Unit]
+Description=TGGO Telegram inbox receiver
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/tggo inbox-listen
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

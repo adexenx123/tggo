@@ -43,3 +43,22 @@ class RelayTests(unittest.TestCase):
             return Result(out='{"status":"ok","bot":"relay_bot"}')
         with patch("tggo.transports.ssh_relay.run",side_effect=fake):
             self.assertEqual("relay_bot",SSHRelayTransport(self.config()).doctor())
+
+    def test_inbox_actions_are_constrained_and_manifest_free(self):
+        calls=[]
+        def fake(command,timeout=60):
+            calls.append(command); return Result(out='[{"id":"TG-ABCDEF123456"}]')
+        with patch("tggo.transports.ssh_relay.run",side_effect=fake):
+            result=SSHRelayTransport(self.config()).inbox("list",None,None,False)
+        self.assertEqual("TG-ABCDEF123456",result[0]["id"])
+        flattened=json.dumps(calls)
+        self.assertNotIn("local-token-must-not-travel",flattened); self.assertNotIn('"123"',flattened)
+        with self.assertRaises(ValueError): SSHRelayTransport(self.config()).inbox("show",";rm -rf",None,False)
+
+    def test_inbox_download_streams_to_private_local_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target=Path(directory)/"copy.bin"
+            completed=__import__("subprocess").CompletedProcess([],0,stdout=b"payload",stderr=b"")
+            with patch("tggo.transports.ssh_relay.run_bytes",return_value=completed):
+                SSHRelayTransport(self.config()).inbox("download","TG-ABCDEF123456",str(target),False)
+            self.assertEqual(b"payload",target.read_bytes())

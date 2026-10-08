@@ -31,7 +31,7 @@ class InboxStore:
         os.replace(temporary, self.index_path)
         os.chmod(self.index_path, 0o600)
 
-    def create(self, record: dict[str, Any]) -> dict[str, Any]:
+    def create(self, record: dict[str, Any], attachment_source: Path | None = None) -> dict[str, Any]:
         index = self._read_index()
         update_key = str(record["update_id"])
         existing = index["updates"].get(update_key)
@@ -48,6 +48,13 @@ class InboxStore:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             json.dump(immutable, handle, ensure_ascii=False, sort_keys=True, indent=2)
             handle.write("\n")
+        if attachment_source is not None:
+            relative = Path(str(immutable["attachment"]["path"]))
+            files = item_directory / "files"
+            files.mkdir(mode=0o700)
+            destination = files / relative.name
+            os.replace(attachment_source, destination)
+            os.chmod(destination, 0o600)
         index["items"][identifier] = {"read": False, "archived": False}
         index["updates"][update_key] = identifier
         self._write_index(index)
